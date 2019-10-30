@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Multiplayer game</title>
+  <style>
+    #ctx {
+      border: 1px solid black;
+      font: 30px Arial;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="ctx" width="500" height="500"></canvas>
+
+  <!-- SCRIPT SECTION -->
+  <script src="socket.io/socket.io.js"></script>
+  <script>
+    var ctx = document.getElementById('ctx').getContext('2d');
+    
+    var socket = io();
+  </script>
+</body>
+</html>
