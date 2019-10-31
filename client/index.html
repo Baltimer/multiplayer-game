@@ -8,7 +8,6 @@
   <style>
     #ctx {
       border: 1px solid black;
-      font: 30px Arial;
     }
   </style>
 </head>
@@ -19,15 +18,37 @@
   <script src="socket.io/socket.io.js"></script>
   <script>
     var ctx = document.getElementById('ctx').getContext('2d');
+    ctx.font = '30px Arial';
 
     var socket = io();
 
     socket.on('newPositions', function(data){
       ctx.clearRect(0,0,500,500);
       for(var i = 0; i < data.length; i++){
-        ctx.fillText('P', data[i].x, data[i].y);
+        ctx.fillText(data[i].number, data[i].x, data[i].y);
       }
-    })
+    });
+
+    document.onkeydown = function(event) {
+      if(event.keyCode === 68) // D
+        socket.emit('keyPress', {inputId: 'right', state: true});
+      else if(event.keyCode === 83) // S
+       socket.emit('keyPress', {inputId: 'down', state: true});
+      else if(event.keyCode === 65) // A
+       socket.emit('keyPress', {inputId: 'left', state: true});
+      else if(event.keyCode === 87) // W
+       socket.emit('keyPress', {inputId: 'up', state: true});
+    }
+    document.onkeyup = function(event) {
+      if(event.keyCode === 68) // D
+        socket.emit('keyPress', {inputId: 'right', state: false});
+      else if(event.keyCode === 83) // S
+       socket.emit('keyPress', {inputId: 'down', state: false});
+      else if(event.keyCode === 65) // A
+       socket.emit('keyPress', {inputId: 'left', state: false});
+      else if(event.keyCode === 87) // W
+       socket.emit('keyPress', {inputId: 'up', state: false});
+    }
   </script>
 </body>
 </html>
