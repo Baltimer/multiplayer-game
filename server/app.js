@@ -16,43 +16,71 @@ server.listen(process.env.SERVER_PORT);
 console.log('Server started on port: ' + process.env.SERVER_PORT);
 
 var SOCKET_LIST = [];
-var PLAYER_LIST = [];
 
-var Player = function(id) {
+// Entity class
+var Entity = function() {
   var self = {
     x: 250,
     y: 250,
-    id: id,
-    number: "" + Math.floor(10 * Math.random()),
-    pressingRight: false,
-    pressingLeft: false,
-    pressingUp: false,
-    pressingDown: false,
-    maxSpeed: 10
+    xSpeed: 0,
+    ySpeed: 0,
+    id: ""
+  }
+
+  self.update = function() {
+    self.updatePosition();
   }
 
   self.updatePosition = function() {
-    if(self.pressingRight) self.x += self.maxSpeed;
-    if(self.pressingLeft) self.x -= self.maxSpeed;
-    if(self.pressingUp) self.y -= self.maxSpeed;
-    if(self.pressingDown) self.y += self.maxSpeed;
+    self.x += self.xSpeed;
+    self.y += self.ySpeed;
   }
 
   return self;
 }
-// Socket.io config
 
-var io = require('socket.io')(server, {});
-io.sockets.on('connection', function(socket) {
-  SOCKET_LIST.push(socket);
+// Player class
+var Player = function(id) {
+  var self = Entity();
+  self.id = id;
+  self.number = "" + Math.floor(10 * Math.random());
+  self.pressingRight = false;
+  self.pressingLeft = false;
+  self.pressingUp = false;
+  self.pressingDown = false;
+  self.maxSpeed = 10;
 
+  var super_update = self.update;
+  self.update = function() {
+    self.updateSpeed();
+    super_update();
+  }
+
+  self.updateSpeed = function() {
+    if(self.pressingRight)
+      self.xSpeed = self.maxSpeed;
+    else if(self.pressingLeft)
+      self.xSpeed = -self.maxSpeed;
+    else
+      self.xSpeed = 0;
+
+    if(self.pressingUp)
+      self.ySpeed = -self.maxSpeed;
+    else if(self.pressingDown)
+      self.ySpeed = self.maxSpeed;
+    else
+      self.ySpeed = 0;
+  }
+
+  Player.list.push(self);
+
+  return self;
+}
+
+// Global Player config
+Player.list = [];
+Player.onConnect = function(socket){
   var player = Player(socket.id);
-  PLAYER_LIST.push(player);
-
-  socket.on('disconnect', function() {
-    SOCKET_LIST = SOCKET_LIST.filter((sock) => sock.id != socket.id)
-    PLAYER_LIST = PLAYER_LIST.filter((play) => play.id != socket.id)
-  });
 
   socket.on('keyPress', function(data) {
     if (data.inputId === 'left')
@@ -64,18 +92,76 @@ io.sockets.on('connection', function(socket) {
     else if(data.inputId === 'down')
       player.pressingDown = data.state;
   });
-});
-
-setInterval(function() {
+}
+Player.onDisconnect = function(socket) {
+  Player.list = Player.list.filter((play) => play.id != socket.id)
+}
+Player.update = function(){
   var pack = [];
-  PLAYER_LIST.forEach((player) => {
-    player.updatePosition();
+  Player.list.forEach((player) => {
+    player.update();
     pack.push({
       y: player.y,
       x: player.x,
       number: player.number
     });
   });
+  return pack;
+}
+
+// Bullet class
+var Bullet = function(angle) {
+  var self = Entity();
+  self.id = Math.random();
+  self.xSpeed = Math.cos(angle/180 * Math.PI) * 10;
+  self.ySpeed = Math.sin(angle/180 * Math.PI) * 10;
+
+  self.timer = 0;
+  self.toRemove = false;
+  var super_update = self.update;
+  self.update = function() {
+    if(self.timer++ > 100) self.toRemove = true;
+    super_update();
+  }
+  Bullet.list.push(self);
+
+  return self;
+  // Bullet.list = Bullet.list.filter((bult) => bult.id != self.id)
+}
+Bullet.list = [];
+Bullet.update = function(){
+  if(Math.random() < 0.1){
+    Bullet(Math.random()*360);
+  }
+  
+  var pack = [];
+  Bullet.list.forEach((bullet) => {
+    bullet.update();
+    pack.push({
+      y: bullet.y,
+      x: bullet.x
+    });
+  });
+  return pack;
+}
+
+// Socket.io config
+var io = require('socket.io')(server, {});
+io.sockets.on('connection', function(socket) {
+  SOCKET_LIST.push(socket);
+
+  Player.onConnect(socket);
+  socket.on('disconnect', function() {
+    SOCKET_LIST = SOCKET_LIST.filter((sock) => sock.id != socket.id)
+    Player.onDisconnect(socket);
+  });
+});
+
+setInterval(function() {
+ var pack = {
+   player: Player.update(),
+   bullet: Bullet.update()
+ }
 
   SOCKET_LIST.forEach((socket) => {
     socket.emit('newPositions', pack);
