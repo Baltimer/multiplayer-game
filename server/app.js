@@ -36,6 +36,10 @@ var Entity = function() {
     self.y += self.ySpeed;
   }
 
+  self.getDistance = function(pt) {
+    return Math.sqrt(Math.pow(self.x - pt.x, 2) + Math.pow(self.y - pt.y));
+  }
+
   return self;
 }
 
@@ -48,12 +52,24 @@ var Player = function(id) {
   self.pressingLeft = false;
   self.pressingUp = false;
   self.pressingDown = false;
+  self.pressingAttack = false;
+  self.mouseAngle = 0;
   self.maxSpeed = 10;
 
   var super_update = self.update;
   self.update = function() {
     self.updateSpeed();
     super_update();
+
+    if(self.pressingAttack){
+      self.shootBullet(self.mouseAngle);
+    }
+  }
+
+  self.shootBullet = function(angle){
+    var bullet = Bullet(self.id, angle);
+    bullet.x = self.x;
+    bullet.y = self.y;
   }
 
   self.updateSpeed = function() {
@@ -91,6 +107,10 @@ Player.onConnect = function(socket){
       player.pressingUp = data.state;
     else if(data.inputId === 'down')
       player.pressingDown = data.state;
+    else if(data.inputId === 'attack')
+      player.pressingAttack = data.state;
+    else if(data.inputId === 'mouseAngle')
+      player.mouseAngle = data.state;
   });
 }
 Player.onDisconnect = function(socket) {
@@ -110,18 +130,26 @@ Player.update = function(){
 }
 
 // Bullet class
-var Bullet = function(angle) {
+var Bullet = function(parent, angle) {
   var self = Entity();
   self.id = Math.random();
   self.xSpeed = Math.cos(angle/180 * Math.PI) * 10;
   self.ySpeed = Math.sin(angle/180 * Math.PI) * 10;
-
+  self.parent = parent;
   self.timer = 0;
   self.toRemove = false;
   var super_update = self.update;
   self.update = function() {
     if(self.timer++ > 100) self.toRemove = true;
     super_update();
+
+    Player.list.forEach((player) => {
+      if(self.getDistance(player) < 32 && self.parent !== player.id) {
+        // handle collision. Ex: hp--; Future
+        console.log('entra');
+        self.toRemove = true;
+      }
+    });
   }
   Bullet.list.push(self);
 
@@ -130,17 +158,16 @@ var Bullet = function(angle) {
 }
 Bullet.list = [];
 Bullet.update = function(){
-  if(Math.random() < 0.1){
-    Bullet(Math.random()*360);
-  }
-  
   var pack = [];
   Bullet.list.forEach((bullet) => {
     bullet.update();
-    pack.push({
-      y: bullet.y,
-      x: bullet.x
-    });
+    if(bullet.toRemove) 
+      Bullet.list = Bullet.list.filter((bult) => bult.id != bullet.id);
+    else
+      pack.push({
+        y: bullet.y,
+        x: bullet.x
+      });
   });
   return pack;
 }
@@ -154,6 +181,19 @@ io.sockets.on('connection', function(socket) {
   socket.on('disconnect', function() {
     SOCKET_LIST = SOCKET_LIST.filter((sock) => sock.id != socket.id)
     Player.onDisconnect(socket);
+  });
+
+  socket.on('sendMsgToServer', function(data) {
+    var playerName = ("" + socket.id).slice(2,7);
+    SOCKET_LIST.forEach((socket) => {
+      socket.emit('addToChat', playerName + ': ' + data);
+    });
+  });
+
+  socket.on('evalServer', function(data) {
+    if(!process.env.DEBUG) socket.emit('evalAnswer', 'Not in debug mode');
+    var res = eval(data);
+    socket.emit('evalAnswer', res);
   });
 });
 
