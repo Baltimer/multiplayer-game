@@ -146,7 +146,6 @@ var Bullet = function(parent, angle) {
     Player.list.forEach((player) => {
       if(self.getDistance(player) < 32 && self.parent !== player.id) {
         // handle collision. Ex: hp--; Future
-        console.log('entra');
         self.toRemove = true;
       }
     });
@@ -172,12 +171,58 @@ Bullet.update = function(){
   return pack;
 }
 
+var USERS = {
+  'bob': 'asd',
+  'test': 'test'
+}
+
+var isValidPassword = function(data, cb) {
+  setTimeout(function() {
+    cb(USERS[data.username] === data.password);
+  }, 10);
+}
+
+var isUsernameTaken = function(data, cb) {
+  setTimeout(function() {
+    cb(USERS[data.username]);
+  }, 10);
+}
+
+var addUser = function(data, cb) {
+  setTimeout(function() {
+    USERS[data.username] = data.password;
+    cb(true);
+  }, 10);
+}
+
 // Socket.io config
 var io = require('socket.io')(server, {});
 io.sockets.on('connection', function(socket) {
   SOCKET_LIST.push(socket);
 
-  Player.onConnect(socket);
+  socket.on('signIn', function(data){
+    isValidPassword(data, function(res){
+      if(res){
+        Player.onConnect(socket);    
+        socket.emit('signInResponse', {success: true});
+      } else {
+        socket.emit('signInResponse', {success: false});
+      }
+    })
+  });
+
+  socket.on('signUp', function(data){
+    isUsernameTaken(data, function(res){
+      if(res){   
+        socket.emit('signUpResponse', {success: false});
+      } else {
+        addUser(data, function(res){
+          socket.emit('signUpResponse', {success: res});
+        });
+      }
+    })
+  });
+
   socket.on('disconnect', function() {
     SOCKET_LIST = SOCKET_LIST.filter((sock) => sock.id != socket.id)
     Player.onDisconnect(socket);
