@@ -158,12 +158,12 @@
     });
 
     socket.on('remove', function(data){
-      for(const playerId in data.player){
+      data.player.forEach(function(playerId){
         delete Player.list[playerId];
-      }
-      for(const bulletId in data.bullet){
+      });
+      data.bullet.forEach(function(bulletId){
         delete Bullet.list[bulletId];
-      }
+      });
     });
 
     setInterval(function() {
