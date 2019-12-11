@@ -198,8 +198,8 @@ var Bullet = function(parent, angle) {
       if(self.getDistance(player) < 32 && self.parent !== player.id) {
         player.hp -= 1;
         if(player.hp <= 0) {
-          var shooter = Player.list.filter((p) => p.id == self.parent);
-          if(shooter.length > 0) shooter[0].score += 1;
+          var shooter = Player.list.find((p) => p.id == self.parent);
+          if(shooter) shooter.score += 1;
           player.hp = player.maxHp;
           player.x = Math.random() * 500;
           player.y = Math.random() * 500;
