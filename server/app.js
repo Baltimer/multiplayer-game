@@ -1,5 +1,5 @@
 var mongojs = require('mongojs');
-var db = mongojs('localhost:27017/multiplayer', ['account', 'progress']);
+var db = mongojs('mongodb+srv://test:1234@testing-wp2z5.mongodb.net/test', ['account', 'progress']);
 
 var express = require('express');
 var app = express();
@@ -92,6 +92,13 @@ var Player = function(id) {
   }
 
   Player.list.push(self);
+  
+  initPack.player.push({
+    id: self.id,
+    x: self.x,
+    y: self.y,
+    number: self.number
+  });
 
   return self;
 }
@@ -117,16 +124,17 @@ Player.onConnect = function(socket){
   });
 }
 Player.onDisconnect = function(socket) {
-  Player.list = Player.list.filter((play) => play.id != socket.id)
+  Player.list = Player.list.filter((play) => play.id != socket.id);
+  removePack.player.push(socket.id);
 }
 Player.update = function(){
   var pack = [];
   Player.list.forEach((player) => {
     player.update();
     pack.push({
+      id: player.id,
       y: player.y,
-      x: player.x,
-      number: player.number
+      x: player.x
     });
   });
   return pack;
@@ -154,22 +162,30 @@ var Bullet = function(parent, angle) {
     });
   }
   Bullet.list.push(self);
+  initPack.bullet.push({
+    id: self.id,
+    x: self.x,
+    y: self.y
+  });
 
   return self;
   // Bullet.list = Bullet.list.filter((bult) => bult.id != self.id)
 }
 Bullet.list = [];
-Bullet.update = function(){
+Bullet.update = function(){ 
   var pack = [];
   Bullet.list.forEach((bullet) => {
     bullet.update();
-    if(bullet.toRemove) 
+    if(bullet.toRemove) {
       Bullet.list = Bullet.list.filter((bult) => bult.id != bullet.id);
-    else
+      removePack.bullet.push(bullet.id);
+    } else{
       pack.push({
+        id: bullet.id,
         y: bullet.y,
         x: bullet.x
       });
+    }
   });
   return pack;
 }
@@ -181,10 +197,10 @@ var USERS = {
 
 var isValidPassword = function(data, cb) {
   db.account.find({username: data.username, password: data.password}, function(err, res) {
-    console.log(res);
     if(res.length > 0){
       cb(true);
     } else {
+      console.log(err);
       cb(false);
     }
   });
@@ -192,10 +208,10 @@ var isValidPassword = function(data, cb) {
 
 var isUsernameTaken = function(data, cb) {
   db.account.find({username: data.username}, function(err, res) {
-    console.log(res);
     if(res.length > 0){
       cb(true);
     } else {
+      console.log(err);
       cb(false);
     }
   });
@@ -203,10 +219,10 @@ var isUsernameTaken = function(data, cb) {
 
 var addUser = function(data, cb) {
   db.account.insert({username: data.username, password: data.password}, function(err, res) {
-    console.log(res.length);
     if(res.length > 0){
       cb(true);
     } else {
+      console.log(err);
       cb(false);
     }
   });
@@ -259,6 +275,9 @@ io.sockets.on('connection', function(socket) {
   });
 });
 
+var initPack = { player: [], bullet: [] };
+var removePack = { player: [], bullet: [] };
+
 setInterval(function() {
  var pack = {
    player: Player.update(),
@@ -266,6 +285,13 @@ setInterval(function() {
  }
 
   SOCKET_LIST.forEach((socket) => {
-    socket.emit('newPositions', pack);
+    socket.emit('init', initPack);
+    socket.emit('update', pack);
+    socket.emit('remove', removePack);
   });
+
+  initPack.player = [];
+  initPack.bullet = [];
+  removePack.player = [];
+  removePack.bullet = [];
 }, 1000/25);
