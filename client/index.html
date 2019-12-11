@@ -106,6 +106,14 @@
     }
 
     // Game
+    var Img = {};
+    Img.player = new Image();
+    Img.player.src = '/client/img/player.png';
+    Img.bullet = new Image();
+    Img.bullet.src = '/client/img/bullet.png';
+    Img.map = new Image();
+    Img.map.src = '/client/img/map.png';
+
     var ctx = document.getElementById('ctx').getContext('2d');
     ctx.font = '30px Arial';
 
@@ -121,10 +129,15 @@
       
       self.draw = function() {
         var hpWidth = 30 * self.hp / self.maxHp;
+        ctx.fillStyle = 'red';
         ctx.fillRect(self.x - hpWidth / 2, self.y - 40, hpWidth, 4);
-        ctx.fillText(self.number, self.x, self.y);
+        
+        var width = Img.player.width * 2;
+        var height = Img.player.height * 2;
 
-        ctx.fillText(self.score, self.x, self.y - 60);
+        ctx.drawImage(Img.player, 0, 0, Img.player.width, Img.player.height, self.x - width / 2, self.y - height / 2, width, height);
+
+        // ctx.fillText(self.score, self.x, self.y - 60);
       }
       
       Player.list[self.id] = self;
@@ -141,7 +154,10 @@
       self.y = initPack.y;
       
       self.draw = function() {
-        ctx.fillRect(self.x -5, self.y -5, 10, 10);
+        var width = Img.bullet.width / 2;
+        var height = Img.bullet.height / 2;
+
+        ctx.drawImage(Img.bullet, 0, 0, Img.bullet.width, Img.bullet.height, self.x - width / 2, self.y - height / 2, width,  height);
       }
       
       Bullet.list[self.id] = self;
@@ -189,6 +205,7 @@
 
     setInterval(function() {
       ctx.clearRect(0,0,500,500);
+      drawMap(); // It needs to be drawn at the start
       for(const playerId in Player.list){
         Player.list[playerId].draw();
       }
@@ -196,6 +213,10 @@
         Bullet.list[bulletId].draw();
       }
     }, 40);
+
+    var drawMap = function() {
+      ctx.drawImage(Img.map, 0, 0);
+    }
 
     document.onkeydown = function(event) {
       if(event.keyCode === 68) // D
