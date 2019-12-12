@@ -43,6 +43,10 @@
   <!-- SCRIPT SECTION -->
   <script src="socket.io/socket.io.js"></script>
   <script>
+    // Constants
+    var WIDTH = 500;
+    var HEIGHT = 500;
+
     var socket = io();
 
     // Sign logic
@@ -128,14 +132,17 @@
       self.score = initPack.score,
       
       self.draw = function() {
+        var x = self.x - Player.list[selfId].x + WIDTH / 2;
+        var y = self.y - Player.list[selfId].y + HEIGHT / 2;
+
         var hpWidth = 30 * self.hp / self.maxHp;
         ctx.fillStyle = 'red';
-        ctx.fillRect(self.x - hpWidth / 2, self.y - 40, hpWidth, 4);
+        ctx.fillRect(x - hpWidth / 2, y - 40, hpWidth, 4);
         
         var width = Img.player.width * 2;
         var height = Img.player.height * 2;
 
-        ctx.drawImage(Img.player, 0, 0, Img.player.width, Img.player.height, self.x - width / 2, self.y - height / 2, width, height);
+        ctx.drawImage(Img.player, 0, 0, Img.player.width, Img.player.height, x - width / 2, y - height / 2, width, height);
 
         // ctx.fillText(self.score, self.x, self.y - 60);
       }
@@ -157,7 +164,10 @@
         var width = Img.bullet.width / 2;
         var height = Img.bullet.height / 2;
 
-        ctx.drawImage(Img.bullet, 0, 0, Img.bullet.width, Img.bullet.height, self.x - width / 2, self.y - height / 2, width,  height);
+        var x = self.x - Player.list[selfId].x + WIDTH / 2;
+        var y = self.y - Player.list[selfId].y + HEIGHT / 2;
+
+        ctx.drawImage(Img.bullet, 0, 0, Img.bullet.width, Img.bullet.height, x - width / 2, y - height / 2, width,  height);
       }
       
       Bullet.list[self.id] = self;
@@ -166,7 +176,10 @@
 
     Bullet.list = {};
 
+    var selfId = null;
+
     socket.on('init', function(data) {
+      if(data.selfId) selfId = data.selfId;
       data.player.forEach(function(playerInfo){
         new Player(playerInfo);
       });
@@ -204,8 +217,10 @@
     });
 
     setInterval(function() {
+      if(!selfId) return;
       ctx.clearRect(0,0,500,500);
       drawMap(); // It needs to be drawn at the start
+      drawScore();
       for(const playerId in Player.list){
         Player.list[playerId].draw();
       }
@@ -214,8 +229,17 @@
       }
     }, 40);
 
+    // Drawing stuff
     var drawMap = function() {
-      ctx.drawImage(Img.map, 0, 0);
+      var x = WIDTH / 2 - Player.list[selfId].x;
+      var y = HEIGHT / 2 - Player.list[selfId].y;
+
+      ctx.drawImage(Img.map, x, y);
+    }
+
+    var drawScore = function() {
+      ctx.fillStyle = 'white';
+      ctx.fillText(Player.list[selfId].score, 0, 30);
     }
 
     document.onkeydown = function(event) {
